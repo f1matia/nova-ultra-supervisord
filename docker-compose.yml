@@ -1,0 +1,106 @@
+version: "3.9"
+
+x-health: &health
+  interval: 5s
+  timeout: 3s
+  retries: 20
+  start_period: 5s
+
+services:
+  api:
+    build: ./backend
+    env_file: ./backend/.env
+    ports: ["8000:8000"]
+    profiles: ["api"]
+    depends_on:
+      pg:
+        condition: service_started
+      weaviate:
+        condition: service_started
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz || exit 1"]
+      <<: *health
+
+  frontend:
+    build: ./frontend-nginx
+    ports: ["5173:80"]
+    depends_on:
+      api:
+        condition: service_healthy
+    profiles: ["frontend"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost/ >/dev/null 2>&1 || exit 1"]
+      <<: *health
+
+  pg:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nova}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nova}
+      POSTGRES_DB: ${POSTGRES_DB:-nova}
+    ports: ["5432:5432"]
+    volumes:
+      - ./infra/pg/init:/docker-entrypoint-initdb.d:ro
+      - pg_data:/var/lib/postgresql/data
+    profiles: ["pg"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nova} -d ${POSTGRES_DB:-nova} -h localhost"]
+      <<: *health
+
+  weaviate:
+    image: semitechnologies/weaviate:1.24.10
+    environment:
+      QUERY_DEFAULTS_LIMIT: "25"
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+      CLUSTER_HOSTNAME: "node1"
+    ports: ["8080:8080"]
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+      - ./infra/weaviate/bootstrap:/weaviate-bootstrap:ro
+    profiles: ["weaviate"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/v1/.well-known/ready >/dev/null 2>&1 || exit 1"]
+      <<: *health
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    profiles: ["redis"]
+
+  worker:
+    build: ./backend
+    command: bash -lc "pip install -r requirements.txt && python - <<'PY'\nfrom backend_addons.celery_app import app; app.worker_main(['worker','-Q','nova','-l','info'])\nPY"
+    env_file: ./backend/.env
+    depends_on:
+      redis:
+        condition: service_started
+    profiles: ["worker"]
+
+volumes:
+  pg_data:
+  weaviate_data:
+
+
+e2e:
+  image: python:3.11-slim
+  depends_on:
+    api:
+      condition: service_healthy
+    redis:
+      condition: service_started
+    pg:
+      condition: service_started
+    weaviate:
+      condition: service_started
+  environment:
+    BASE_URL: http://api:8000
+    WEAVIATE_URL: http://weaviate:8080
+    DATABASE_URL: postgresql+psycopg://nova:nova@pg:5432/nova
+  working_dir: /repo
+  volumes:
+    - ./:/repo
+  command: bash -lc "pip install -r backend/requirements.txt pytest requests psycopg[binary] && pytest -q tests/integration"
+  profiles: ["e2e"]

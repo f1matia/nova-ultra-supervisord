@@ -1,0 +1,42 @@
+{
+  "classes": [
+    {
+      "class": "Document",
+      "description": "Generic chunked document for RAG",
+      "vectorizer": "none",
+      "vectorIndexType": "hnsw",
+      "vectorIndexConfig": {
+        "distance": "cosine",
+        "efConstruction": 200,
+        "maxConnections": 16,
+        "ef": 64
+      },
+      "properties": [
+        {
+          "name": "namespace",
+          "dataType": [
+            "text"
+          ]
+        },
+        {
+          "name": "content",
+          "dataType": [
+            "text"
+          ]
+        },
+        {
+          "name": "metadata",
+          "dataType": [
+            "object"
+          ]
+        },
+        {
+          "name": "tags",
+          "dataType": [
+            "text[]"
+          ]
+        }
+      ]
+    }
+  ]
+}

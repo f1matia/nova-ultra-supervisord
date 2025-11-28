@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NOVA Ultra — Admin Panel</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto;background:#0b1220;color:#e6eef7;margin:0}
+.wrap{max-width:900px;margin:0 auto;padding:16px} .card{background:#0e1726;border:1px solid #1f2b3a;border-radius:12px;padding:12px;margin:10px 0}
+input{background:#0a0f1a;color:#e6eef7;border:1px solid #213045;border-radius:8px;padding:8px 10px;width:100%}
+button{border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer}
+.primary{background:#08c7db;color:#04111e} .ok{background:#3bd671;color:#04111e} .no{background:#f23952;color:white}
+.list{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{border:1px solid #2a3a4f;border-radius:999px;padding:2px 8px;color:#b7c7d9;font-size:12px}
+</style></head>
+<body><div class="wrap">
+<h2>NOVA Ultra — Admin Panel</h2>
+<div class="card"><div class="row">
+  <div style="flex:1"><label>Base URL</label><input id="base" value="" placeholder="http://localhost:8000"></div>
+  <div style="flex:1"><label>JWT (admin)</label><input id="jwt" placeholder="Paste Bearer token"></div>
+  <button id="mint" class="primary">Dev Issue Admin JWT</button>
+  <button id="refresh" class="primary">Refresh</button>
+</div></div>
+<div class="card"><div class="row"><h3 style="margin:0">Pending Approvals</h3><span id="count" class="pill">0</span></div><div id="list" class="list"></div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id); const originBase=location.origin.replace(/:\d+$/,':8000'); $("base").value=originBase;
+function headers(){ const h={"Content-Type":"application/json"}; const t=$("jwt").value.trim(); if(t){ h["Authorization"]="Bearer "+t } else { h["X-API-Key"]="devkey" } return h;}
+$("mint").onclick=async()=>{ const r=await fetch($("base").value+"/auth/jwt/issue?role=admin",{headers:{"X-API-Key":"devkey"}}); const j=await r.json(); $("jwt").value=j.token; alert("Admin JWT issued."); }
+$("refresh").onclick=async()=>{ const r=await fetch($("base").value+"/v1/human/approvals?status=pending",{headers:headers()}); const j=await r.json(); $("list").innerHTML=""; const items=j.items||[]; $("count").innerText=items.length;
+  items.forEach(it=>{ const d=document.createElement('div'); d.className='card'; const pre=document.createElement('pre'); pre.textContent=JSON.stringify(it,null,2);
+    const ok=document.createElement('button'); ok.className='ok'; ok.textContent='Approve'; ok.onclick=()=>decide(it.id,'approve');
+    const no=document.createElement('button'); no.className='no'; no.textContent='Deny'; no.onclick=()=>decide(it.id,'deny');
+    d.appendChild(pre); d.appendChild(ok); d.appendChild(no); $("list").appendChild(d); });
+};
+async function decide(id, decision){ const r=await fetch($("base").value+"/v1/human/approvals/"+id,{method:"POST",headers:headers(),body:JSON.stringify({decision})}); if(!r.ok){ alert("Failed: "+r.status); return } $("refresh").click(); }
+</script></body></html>

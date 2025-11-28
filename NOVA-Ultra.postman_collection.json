@@ -1,0 +1,141 @@
+{
+  "info": {
+    "name": "NOVA Ultra MVP",
+    "_postman_id": "e0f3a2e0-aaaa-bbbb-cccc-ddddeeefff11",
+    "description": "Collection for NOVA Ultra MVP API (health, auth, NDJSON stream, SSE stream, approvals).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base}}/healthz"
+      }
+    },
+    {
+      "name": "Auth / Mint Dev Token",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": "{{base}}/auth/dev/mint?role=user"
+      }
+    },
+    {
+      "name": "Stream (NDJSON)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base}}/v1/nova/act/stream",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"postman\",\n  \"goal\": \"demo\",\n  \"allowed_tools\": [\n    \"web.search\",\n    \"rag.query\"\n  ],\n  \"context\": {},\n  \"constraints\": {},\n  \"autonomy\": {\n    \"enabled\": true,\n    \"max_steps\": 2,\n    \"human_gate\": [\n      \"deploy\"\n    ]\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Stream (SSE)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base}}/v1/nova/act/sse",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"postman\",\n  \"goal\": \"demo\",\n  \"allowed_tools\": [\n    \"web.search\",\n    \"rag.query\"\n  ],\n  \"context\": {},\n  \"constraints\": {},\n  \"autonomy\": {\n    \"enabled\": true,\n    \"max_steps\": 2,\n    \"human_gate\": []\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Approvals - List Pending",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": "{{base}}/v1/human/approvals?status=pending"
+      }
+    },
+    {
+      "name": "Approvals - Decide",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base}}/v1/human/approvals/{{approval_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"decision\": \"approve\"}"
+        }
+      }
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "api_key",
+      "value": "devkey"
+    },
+    {
+      "key": "approval_id",
+      "value": ""
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NOVA Ultra Console (Single)</title>
+<style>body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;background:#0b1220;color:#e6eef7;margin:0}
+.wrap{max-width:1100px;margin:0 auto;padding:16px} .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.card{background:#0e1726;border:1px solid #1f2b3a;border-radius:12px;padding:12px;margin:10px 0}
+input,textarea{background:#0a0f1a;color:#e6eef7;border:1px solid #213045;border-radius:10px;padding:8px 10px;width:100%}
+button{border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer} .primary{background:#08c7db;color:#04111e}
+.danger{background:#f23952;color:#fff} .list{max-height:50vh;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.pill{border:1px solid #2a3a4f;border-radius:999px;padding:2px 8px;color:#b7c7d9;font-size:12px}</style></head>
+<body><div class="wrap">
+<h2>NOVA Ultra — Single‑File Console</h2>
+<div class="card"><div class="row">
+  <div style="flex:1"><label>Base URL</label><input id="base" value="" placeholder="http://localhost:8000"></div>
+  <div><label>API Key</label><input id="key" value="devkey"></div>
+  <div style="align-self:flex-end"><button id="mint" class="primary">Mint Dev JWT</button></div>
+</div></div>
+<div class="card"><div class="row"><div style="flex:1">
+  <label>Goal</label><textarea id="goal">Design a 6-month EV adoption policy for City X</textarea>
+</div><div><label>Max Steps</label><input id="steps" value="3"></div><div><label>Human Gate</label><input id="gate" value="deploy"></div>
+<div class="row"><button id="start" class="primary">Start NDJSON</button><button id="startSse" class="primary">Start SSE</button><button id="stop" class="danger">Stop</button></div>
+</div></div>
+<div class="card"><div class="row"><h3 style="margin:0">Stream</h3><span id="count" class="pill">0 events</span></div><div id="out" class="list"></div></div>
+<div class="card"><div class="row"><h3 style="margin:0">Approvals</h3><button id="refresh">Refresh</button></div><div id="appr" class="list"></div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id); const originBase=location.origin.replace(/:\d+$/,':8000'); $("base").value=originBase;
+let abortCtl=null; function headers(){return {"X-API-Key":$("key").value,"Content-Type":"application/json"}}
+function push(o){ const li=document.createElement('div'); li.className='card'; li.innerText=JSON.stringify(o); $("out").appendChild(li); $("count").innerText=(+($("count").innerText.split(' ')[0])+1)+' events'; }
+$("mint").onclick=async()=>{ const r=await fetch($("base").value+"/auth/dev/mint?role=user",{headers:{"X-API-Key":$("key").value}}); const j=await r.json(); alert("Minted: "+j.token) }
+$("start").onclick=async()=>{ $("out").innerHTML=""; $("count").innerText="0 events"; abortCtl=new AbortController();
+  const body={user_id:"console",goal:$("goal").value,allowed_tools:["web.search","rag.query"],context:{},constraints:{},autonomy:{enabled:true,max_steps:parseInt($("steps").value||"3"),human_gate:$("gate").value.split(',').map(s=>s.trim())}};
+  const res=await fetch($("base").value+"/v1/nova/act/stream",{method:"POST",headers:headers(),body:JSON.stringify(body),signal:abortCtl.signal});
+  const reader=res.body.getReader(); const dec=new TextDecoder(); let buf="";
+  while(true){ const {value,done}=await reader.read(); if(done){ for(const ln of buf.split("\n").filter(Boolean)) push(JSON.parse(ln)); break; }
+    buf+=dec.decode(value,{stream:true}); const parts=buf.split("\n"); buf=parts.pop()||""; for(const ln of parts) push(JSON.parse(ln)); }
+};
+$("startSse").onclick=()=>{ $("out").innerHTML=""; $("count").innerText="0 events";
+  const body={user_id:"console",goal:$("goal").value,allowed_tools:["web.search","rag.query"],context:{},constraints:{},autonomy:{enabled:true,max_steps:parseInt($("steps").value||"3"),human_gate:$("gate").value.split(',').map(s=>s.trim())}};
+  fetch($("base").value+"/v1/nova/act/sse",{method:"POST",headers:headers(),body:JSON.stringify(body)}).then(async res=>{
+    const rd=res.body.getReader(); const dec=new TextDecoder(); let buf=""; while(true){ const {value,done}=await rd.read(); if(done) break; buf+=dec.decode(value,{stream:true}); let idx; while((idx=buf.indexOf("\n\n"))>=0){ const frame=buf.slice(0,idx).trim(); buf=buf.slice(idx+2); if(frame.startsWith("data:")){ const js=frame.slice(5).trim(); try{ push(JSON.parse(js)) }catch{} } } }
+  });
+};
+$("stop").onclick=()=>{ if(abortCtl) abortCtl.abort() };
+$("refresh").onclick=async()=>{ const r=await fetch($("base").value+"/v1/human/approvals?status=pending",{headers:headers()}); const j=await r.json(); $("appr").innerHTML="";
+  (j.items||[]).forEach(it=>{ const d=document.createElement('div'); d.className='card'; d.innerText=JSON.stringify(it); $("appr").appendChild(d); });
+};
+</script></body></html>
