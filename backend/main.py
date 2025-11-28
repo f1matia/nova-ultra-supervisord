@@ -34,6 +34,14 @@ async def _startup():
     except Exception as e:
         print("DB init skipped/failed:", e)
 
+from backend_addons.test_tasks import add_numbers
+
+@app.post("/test-celery")
+def test_celery(a: int = 1, b: int = 2):
+    task = add_numbers.delay(a, b)
+    return {"task_id": task.id}
+
+
 import jwt
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
 JWT_ISSUER = os.getenv("JWT_ISSUER", "nova-ultra")

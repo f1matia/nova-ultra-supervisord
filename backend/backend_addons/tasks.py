@@ -9,3 +9,8 @@ def add(x, y):
     print(f"[TASK] add result: {x+y}")
     return x + y
 
+from .celery_app import app
+
+@app.task
+def add_numbers(a, b):
+    return a + b
