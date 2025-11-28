@@ -4,6 +4,15 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
+# import at top if not already present
+from backend_addons.tasks import add
+
+# add this route (place after app defined)
+@app.post("/v1/task/enqueue")
+def enqueue_task(a: int = 1, b: int = 2):
+    res = add.delay(a, b)
+    return {"task_id": res.id}
+
 
 load_dotenv()
 

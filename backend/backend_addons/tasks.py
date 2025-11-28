@@ -1,6 +1,11 @@
-from .celery_app import app
+# backend/backend_addons/tasks.py
+from celery import shared_task
 import time
-@app.task
-def run_agent(goal: str) -> str:
-    time.sleep(1)
-    return f"done: {goal[:64]}"
+
+@shared_task
+def add(x, y):
+    print(f"[TASK] add({x},{y}) start")
+    time.sleep(2)
+    print(f"[TASK] add result: {x+y}")
+    return x + y
+
