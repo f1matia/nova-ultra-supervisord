@@ -1,22 +1,23 @@
 FROM python:3.11-slim
+
+# Install system deps and supervisor
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential supervisor && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
-COPY requirements.txt .
+
+# Copy python requirements and install
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy app code
 COPY . .
-EXPOSE 8000
 
-
-# Install supervisor and set up supervisord to run both uvicorn and celery in one container
-RUN apt-get update && apt-get install -y --no-install-recommends supervisor && rm -rf /var/lib/apt/lists/*
-
-# copy supervisord config
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Ensure working directory
-WORKDIR /repo/backend
+# Ensure supervisord.conf is used as the main config
+RUN mkdir -p /etc/supervisor
+COPY supervisord.conf /etc/supervisor/supervisord.conf
 
 EXPOSE 8000
 
-# Run supervisord (which will manage uvicorn + celery)
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
