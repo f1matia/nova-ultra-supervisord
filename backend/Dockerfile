@@ -1,23 +1,25 @@
 FROM python:3.11-slim
 
-# Install system deps and supervisor
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential supervisor && \
+# install system deps needed for building wheels (optional but helpful)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc libpq-dev curl && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy python requirements and install
-COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# copy only requirements first to leverage docker cache
+COPY backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy app code
-COPY . .
+# copy the rest of the backend
+COPY backend/ /app/
 
-# Ensure supervisord.conf is used as the main config
+# ensure supervisor dir exists and copy the conf
 RUN mkdir -p /etc/supervisor
-COPY supervisord.conf /etc/supervisor/supervisord.conf
+COPY backend/supervisord.conf /etc/supervisor/supervisord.conf
 
-EXPOSE 8000
+# Healthcheck (optional)
+HEALTHCHECK --interval=5s --timeout=3s --start-period=5s CMD curl -f http://localhost:8000/healthz || exit 1
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+# start supervisord in foreground
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
