@@ -1,0 +1,4 @@
+docker-compose.yml.bak
+docker-compose.yml.bak2
+docker-compose.yml.corrupt.bak*
+backend/Dockerfile.bak
