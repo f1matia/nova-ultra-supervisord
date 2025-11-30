@@ -5,6 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
+ENV PYTHONPATH=/app
 
 # system deps and supervisor
 RUN apt-get update \
