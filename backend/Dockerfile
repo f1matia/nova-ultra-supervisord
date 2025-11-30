@@ -1,25 +1,29 @@
+# backend/Dockerfile — use this file inside the backend/ folder
 FROM python:3.11-slim
 
-# avoid interactive prompts
-ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# copy only requirements first (good cache behavior)
-COPY requirements.txt /app/requirements.txt
+# system deps and supervisor
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends build-essential supervisor \
+  && rm -rf /var/lib/apt/lists/*
 
-# install system deps needed for some wheels (psycopg, build tools, etc.)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential gcc libpq-dev curl && \
-    python -m pip install --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r /app/requirements.txt && \
-    apt-get remove -y build-essential gcc && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+# install python deps
+# Ensure you have requirements.txt in backend/
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# copy backend code into image
+# copy app source into image
 COPY . /app
 
-# make sure python finds backend package (if your package layout expects this)
-ENV PYTHONPATH=/app
+# copy supervisord config into correct place
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# default command: run uvicorn (binds to $PORT if Render sets it)
-CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# expose uvicorn port
+EXPOSE 8000
+
+# start supervisord which will start uvicorn + celery
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
